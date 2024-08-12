@@ -26,7 +26,7 @@ package xiangshan.vector.virename
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
-
+import xiangshan.backend.rename.SnapshotGenerator
 import xiangshan._
 import utils._
 import xs.utils.{CircularQueuePtr, HasCircularQueuePtrHelper, CircularShift}
@@ -44,6 +44,9 @@ class VIFreeList(implicit p: Parameters) extends VectorBaseModule with HasCircul
     val allocatePhyReg = Vec(VIRenameWidth, UInt(VIPhyRegIdxWidth.W))
     //connects with RollBackList
     val releasePhyReg = Vec(8, Flipped(ValidIO(UInt(VIPhyRegIdxWidth.W))))
+    //snapshot
+    val snpt = Input(new SnapshotPort)
+    val redirect = Valid(new Redirect)
   })
 
   class VIFreeListPtr extends CircularQueuePtr[VIFreeListPtr](VIPhyRegsNum - 32)
@@ -55,6 +58,8 @@ class VIFreeList(implicit p: Parameters) extends VectorBaseModule with HasCircul
       ptr
     }
   }
+  //generate snapshot
+  val snapshots = SnapshotGenerator(allocatePtr, io.snpt.snptEnq, io.snpt.snptDeq, io.redirect.valid, io.snpt.flushVec)
 
   // free list
   // FreeList init value is: [32, 33, 34, ..., 61, 62]
@@ -81,10 +86,11 @@ class VIFreeList(implicit p: Parameters) extends VectorBaseModule with HasCircul
   })
 
   private val doAlloc = io.needAlloc.map(_ && io.canAccept).reduce(_|_)
-  when(doAlloc){
-    allocatePtr := allocatePtr + allocateNum
+  //use snapshot to update allocatePtr
+  private val allocatePtrNext=Mux(io.redirect.valid, snapshots(io.snpt.snptSelect), allocatePtr + allocateNum)
+  when(doAlloc) {
+    allocatePtr := allocatePtrNext
   }
-
   //Release
   private val releaseNum = PopCount(io.releasePhyReg.map(_.valid))
   private val doRelease = io.releasePhyReg.map(_.valid).reduce(_|_)

@@ -78,7 +78,12 @@ class VIRenameTable(implicit p: Parameters) extends VectorBaseModule {
     val commit      = Input(new VIRatCommitPort)
     val redirect = Flipped(ValidIO(new Redirect))
     val debug  = Output(Vec(32, UInt(VIPhyRegIdxWidth.W))) //for difftest
+    //snapshot
+    val snpt = Input(new SnapshotPort)
   })
+  //TODO:generate snapshot
+  val snapshots = SnapshotGenerator(sRAT, io.snpt.snptEnq, io.snpt.snptDeq, io.redirect.valid, io.snpt.flushVec)
+
   //RAT
   private val rat_ds = VecInit.tabulate(32)(i => i.U(VIPhyRegIdxWidth.W))
   private val sRAT = RegInit(rat_ds)
@@ -142,7 +147,8 @@ class VIRenameTable(implicit p: Parameters) extends VectorBaseModule {
   //Walk write has priority: write with bigger idx will overwrite ones with smaller.
   for (i <- 0 until 8) {
     when(io.commit.doWalk && io.commit.mask(i)) {
-      sRAT(io.commit.lrIdx(i)) := io.commit.prIdxNew(i)
+      //TODO: generate snapshot
+      sRAT(io.commit.lrIdx(i)) := Mux(io.snpt.useSnpt,snapshots(io.snpt.snptSelect)(i),io.snpt.io.commit.prIdxNew(i))
     }
   }
   //Commit write has priority: write with bigger idx will overwrite ones with smaller.

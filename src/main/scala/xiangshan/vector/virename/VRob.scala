@@ -55,6 +55,8 @@ class VRob(implicit p: Parameters) extends VectorBaseModule with HasCircularQueu
     }
     val exception = Input(Valid(new ExceptionInfo))
     val redirect = Flipped(ValidIO(new Redirect))
+    //snapshot
+    val snpt = Input(new SnapshotPort)
   })
 
   val enqPtr = RegInit(0.U.asTypeOf(new VRobPtr))
@@ -65,6 +67,14 @@ class VRob(implicit p: Parameters) extends VectorBaseModule with HasCircularQueu
 
   val array = Reg(Vec(size, new VRobEntry))
   val array_v = RegInit(VecInit(Seq.fill(size)(false.B)))
+
+  //snap enq
+  val snapshotPtrVec = Wire(Vec(CommitWidth, new RobPtr))
+  snapshotPtrVec(0) := io.enq(0).bits.robIdx
+  for (i <- 1 until VICommitWidth) {
+    snapshotPtrVec(i) := snapshotPtrVec(0) + i.U
+  }
+  val snapshots = SnapshotGenerator(snapshotPtrVec, io.snpt.snptEnq, io.snpt.snptDeq, io.redirect.valid, io.snpt.flushVec)
 
   // enq
   val enqPtrVec = Wire(Vec(VIRenameWidth, UInt(log2Up(size).W)))
@@ -105,13 +115,18 @@ class VRob(implicit p: Parameters) extends VectorBaseModule with HasCircularQueu
     walkNum := walkNum - PopCount(io.commit.rat.mask)
   }
 
+  //use snapshot to walk
+  val snapPtrRead = snapshots(io.snpt.snptSelect)(0)
+  val snapPtrVecForWalk = VecInit((0 until CommitWidth).map(i => snapPtrRead + i.U))
+
   // commit
   val commitPtrVec = Wire(Vec(8, UInt(log2Up(size).W)))
   val walkPtrVec = Wire(Vec(8, UInt(log2Up(size).W)))
   commitPtrVec.zip(walkPtrVec).zipWithIndex.foreach {
     case ((cptr, wptr), i) => {
       cptr := (deqPtr + i.U).value
-      wptr := (enqPtr - (i+1).U).value
+      //if using snapshot, change the walkPtrVec
+      wptr := Mux(io.snpt.useSnpt,snapPtrVecForWalk,(enqPtr - (i+1).U).value)
     }
   }
   val exceptionCmtValid = io.exception.valid && !io.exception.bits.isInterrupt && io.exception.bits.uop.vctrl.isLs && !ExceptionNO.selectFrontend(io.exception.bits.uop.cf.exceptionVec).reduce(_ | _)

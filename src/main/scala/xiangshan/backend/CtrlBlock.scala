@@ -358,7 +358,8 @@ class CtrlBlockImp(outer: CtrlBlock)(implicit p: Parameters) extends LazyModuleI
   rat.io.snpt.useSnpt := useSnpt
   rat.io.snpt.snptSelect := snptSelect
   rat.io.snpt.flushVec := flushVec
-  //TODO:send snapshot signal to vCtrlBlock
+
+  //send snapshot signal to vCtrlBlock
   vCtrlBlock.io.snpt.snptEnq := genSnapshot
   vCtrlBlock.io.snpt.snptDeq := snpt.io.deq
   vCtrlBlock.io.snpt.useSnpt := useSnpt

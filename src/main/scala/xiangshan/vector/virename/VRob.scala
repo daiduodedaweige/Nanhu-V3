@@ -68,12 +68,13 @@ class VRob(implicit p: Parameters) extends VectorBaseModule with HasCircularQueu
   val array = Reg(Vec(size, new VRobEntry))
   val array_v = RegInit(VecInit(Seq.fill(size)(false.B)))
 
-  //snap enq
+  //snapshot enq
   val snapshotPtrVec = Wire(Vec(CommitWidth, new RobPtr))
   snapshotPtrVec(0) := io.enq(0).bits.robIdx
   for (i <- 1 until VICommitWidth) {
     snapshotPtrVec(i) := snapshotPtrVec(0) + i.U
   }
+  //generate snapshot
   val snapshots = SnapshotGenerator(snapshotPtrVec, io.snpt.snptEnq, io.snpt.snptDeq, io.redirect.valid, io.snpt.flushVec)
 
   // enq

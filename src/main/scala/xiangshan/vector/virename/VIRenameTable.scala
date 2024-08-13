@@ -81,7 +81,7 @@ class VIRenameTable(implicit p: Parameters) extends VectorBaseModule {
     //snapshot
     val snpt = Input(new SnapshotPort)
   })
-  //TODO:generate snapshot
+  //generate snapshot
   val snapshots = SnapshotGenerator(sRAT, io.snpt.snptEnq, io.snpt.snptDeq, io.redirect.valid, io.snpt.flushVec)
 
   //RAT
@@ -147,7 +147,7 @@ class VIRenameTable(implicit p: Parameters) extends VectorBaseModule {
   //Walk write has priority: write with bigger idx will overwrite ones with smaller.
   for (i <- 0 until 8) {
     when(io.commit.doWalk && io.commit.mask(i)) {
-      //TODO: generate snapshot
+      //use snapshot to update sRAT
       sRAT(io.commit.lrIdx(i)) := Mux(io.snpt.useSnpt,snapshots(io.snpt.snptSelect)(i),io.snpt.io.commit.prIdxNew(i))
     }
   }

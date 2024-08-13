@@ -134,7 +134,7 @@ class VIRename(implicit p: Parameters) extends VectorBaseModule {
       rlb.bits.newPhyRegIdx := freeList.io.allocatePhyReg(i)
     }
   }
-  //TODO: send snpt signal to renameTable,freeList,vrob
+  //send snpt to renameTable,freeList,vrob
   renameTable.io.snpt:=io.snpt
   freeList.io.snpt:=io.snpt
   vrob.io.snpt:=io.snpt
